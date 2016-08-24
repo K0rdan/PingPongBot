@@ -16,18 +16,18 @@ module.exports = class PingPongBot{
         console.log("[PPB]["+type+"]["+method+"] -", msg);
     }
 
-    // Check if players exist; return the player found or true.
-    existPlayer(playerName) {
+    // Check if players exist; return the player found or false.
+    existPlayer(playerId) {
         for(let i=0;i<this.players.length;i++){
-            if(this.players[i].getName() == playerName)
+            if(this.players[i].getId() == playerId)
                 return this.players[i];
         }
-        return true;
+        return false;
     }
 
     // Check if match exist; 
     //  return :    the Match found if one player is already invovled in a not finished match.
-    //              True (a new match can be create).
+    //              False (a new match can be create).
     existMatch(match) {
         for(let i=0;i<this.matchs.length;i++){
             if(!this.matchs[i].getInit()){
@@ -39,24 +39,32 @@ module.exports = class PingPongBot{
         return true;
     }
 
+    findPlayerNameById(playerId) {
+        for(let i=0; i<this.players[i];i++){
+            if(this.players[i].getId() == playerId){
+                return this.players[i].getId();
+            }
+        }
+        return ''; // Empty string
+    }
     // Find the awaiting match for the player(s) passed through parameter.
     //  info :      The second player's name is optional.
     //  return :    the Match found.
     //              null if no match found. 
-    findAwaitingMatch(playerName1, playerName2) {
+    findAwaitingMatch(playerId1, playerId2) {
         for(let i=0;i<this.matchs.length;i++){
             if(!this.matchs[i].getInit()){
                 let players = this.matchs[i].getPlayers();
                 
                 // 1) Retreive match for 1 player
                 if(arguments.length == 1){ // If an non-initied match with the player is found.
-                    if(typeof(_.find(players, function(p) { return p.getName() == playerName1; })) !== "undefined")
+                    if(typeof(_.find(players, function(p) { return p.getId() == playerId1; })) !== "undefined")
                         return this.matchs[i];
                 }
                 // 2) Retreive match for the 2 players
                 if(arguments.length == 2) {
-                    if( (players[0].getName() == playerName1 || players[1].getName() == playerName1) &&
-                        (players[0].getName() == playerName2 || players[1].getName() == playerName2))
+                    if( (players[0].getId() == playerId1 || players[1].getId() == playerId1) &&
+                        (players[0].getId() == playerId2 || players[1].getId() == playerId2))
                         return this.matchs[i];
                 }
             }
@@ -64,28 +72,40 @@ module.exports = class PingPongBot{
         return null;
     }
 
-    addPlayer(name) {
-        if(name){
-            let checkIn = this.existPlayer(name);
-            if(checkIn == true){
-                let player = new Player(name, this.CONSTS.ELOBASE);
+    findOngoingMatch(player) {
+        for(let i=0;i<this.matchs.length;i++){
+            if(this.matchs[i].getInit()){
+                let players = this.matchs[i].getPlayers();
+                if(players[0] == player || players[1] == player){
+                    return this.matchs[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    addPlayer(id) {
+        if(id){
+            let existPlayer = this.existPlayer(id);
+            if(!existPlayer){
+                let player = new Player(id, this.CONSTS.ELOBASE);
                 if(player != null){
                     this.players.push(player);
-                    this.log("INFO", "addPlayer", "New player registered : "+player.getName()+"!");
+                    this.log("INFO", "addPlayer", "New player registered : "+player.getId()+"!");
                 }
                 else
                     this.log("ERRO", "addPlayer", "Error when creating the new player.");
             }
             else
-                this.log("ERRO", "addPlayer", "Player ('"+checkIn.getName()+"') already exist.")
+                this.log("ERRO", "addPlayer", "Player ('"+existPlayer.getId()+"') already exist.")
         }
         else
             this.log("ERRO", "addPlayer", "The new player must be named.");
     }
 
-    addMatch(playerName1, playerName2) {
-        let p1 = this.existPlayer(playerName1);
-        let p2 = this.existPlayer(playerName2);
+    addMatch(playerId1, playerId2) {
+        let p1 = this.existPlayer(playerId1);
+        let p2 = this.existPlayer(playerId2);
         
         if(p1 != true && p2 != true && p1 && p2) {
             let match = new Match(p1,p2);
@@ -93,27 +113,27 @@ module.exports = class PingPongBot{
                 let checkIn = this.existMatch(match);
                 if(checkIn == true) {
                     this.matchs.push(match);
-                    this.log("INFO", "addMatch", "Match between "+playerName1+" and "+playerName2+" created !");
+                    this.log("INFO", "addMatch", "Match between "+this.findPlayerNameById(playerId1)+" and "+this.findPlayerNameById(playerId2)+" created !");
                 }
                 else 
-                    this.log("ERRO", "addMatch", "A match between "+checkIn.getPlayers()[0].name+" and "+checkIn.getPlayers()[1].name+" already exist and isn't finish.");
+                    this.log("ERRO", "addMatch", "A match between "+checkIn.getPlayers()[0].getName()+" and "+checkIn.getPlayers()[1].getName()+" already exist and isn't finish.");
             }
             else
                 this.log("ERRO", "addMatch", "Error when creating the new match.");
         }
         else {
             if(p1 == true)
-                this.log("ERRO", "addMatch", "Player ('"+playerName1+"') not found");
+                this.log("ERRO", "addMatch", "Player ('"+playerId1+"') not found");
             if(p2 == true)
-                this.log("ERRO", "addMatch", "Player ('"+playerName2+"') not found");
+                this.log("ERRO", "addMatch", "Player ('"+playerId2+"') not found");
         }     
     }
 
-    acceptMatch(playerName) {
-        if(playerName){
-            let player = this.existPlayer(playerName);
+    acceptMatch(playerId) {
+        if(playerId){
+            let player = this.existPlayer(playerId);
             if(player != true) {
-                let match = this.findAwaitingMatch(playerName);
+                let match = this.findAwaitingMatch(playerId);
                 if(match != null) {
                     if(match.acceptMatch(player))
                         this.log("INFO", "acceptMatch", "You have accept the match !");
@@ -124,18 +144,18 @@ module.exports = class PingPongBot{
                     this.log("ERRO", "acceptMatch", "No awaiting match found.");
             }
             else
-                this.log("ERRO", "acceptMatch", "Player ('"+playerName+"') not found.");
+                this.log("ERRO", "acceptMatch", "Player ('"+this.findPlayerNameById(playerId)+"') not found.");
         }
         else
             this.log("ERRO", "acceptMatch", "Missing parameter (player's name).");
     }
 
-    ignoreMatch(playerName1, playerName2) {
-        let p1 = this.existPlayer(playerName1);
+    ignoreMatch(playerId1, playerId2) {
+        let p1 = this.existPlayer(playerId1);
         let p2 = this.existPlayer(playerName2);
         
         if(p1 != true && p2 != true && p1 && p2) {
-            let match = this.findAwaitingMatch(playerName1, playerName2);
+            let match = this.findAwaitingMatch(playerId1, playerId2);
             if(match != null) {
                 // Delete the match
                 _.remove(this.matchs, function(m) { return m == match; });
@@ -146,37 +166,50 @@ module.exports = class PingPongBot{
         }
         else {
             if(p1 == true)
-                this.log("ERRO", "ignoreMatch", "Player ('"+playerName1+"') not found");
+                this.log("ERRO", "ignoreMatch", "Player ('"+playerId1+"') not found");
             if(p2 == true)
-                this.log("ERRO", "ignoreMatch", "Player ('"+playerName2+"') not found");
+                this.log("ERRO", "ignoreMatch", "Player ('"+playerId2+"') not found");
         }   
 
     }
 
-    won(score1, score2) {
-        if(arguments.length == 2){
-            if(score1 > score2)
-                this.finishMatch(score1, score2);
+    won(playerId, score1, score2) {
+        let player = this.existPlayer(playerId);
+        if(player) {
+            if(typeof(score1) == "number" && typeof(score2) == "number") {
+                if(score1 > score2)
+                    this.finishMatch(player, score1, score2);
+                else
+                    this.log("ERRO", "won", "The first score provided ('"+score1+"') must be greater than the second ('"+score2+"').");
+            }
             else
-                this.log("ERRO", "won", "The first score provided must be greater than the second");
+                this.log("ERRO", "won", "Invalid score ("+score1+","+score2+")");
         }
         else
-            this.finishMatch(this.CONSTS.DEFAULT_SCORE.WINNER,this.CONSTS.DEFAULT_SCORE.LOOSER);
+            this.log("ERRO", "won", "Player ('"+playerId+"') not found.");
     }
-    lost(score1, score2) {
-        if(arguments.length == 2)
-            if(score1 < score2)
-                this.finishMatch(score1, score2);
+    lost(playerId, score1, score2) {
+        let player = this.existPlayer(playerId);
+        if(player) {
+            if(typeof(score1) == "number" && typeof(score2) == "number") {
+                if(score1 < score2)
+                    this.finishMatch(player, score1, score2);
+                else
+                    this.log("ERRO", "lost", "The first score provided ('"+score1+"') must be smaller than the second ('"+score2+"').");
+            }
             else
-                this.log("ERRO", "lost", "The first score provided must be worse than the second");
+                this.log("ERRO", "lost", "Invalid score ("+score1+","+score2+")");     
+        }
         else
-            this.finishMatch(this.CONSTS.DEFAULT_SCORE.LOOSER,this.CONSTS.DEFAULT_SCORE.WINNER);
+            this.log("ERRO", "lost", "Player ('"+playerId+"') not found.");
     }
-    finishMatch(score1, score2) {
-        if(arguments.length == 2 && typeof(score1) == "number" && typeof(score2) == "number") {
+    finishMatch(player, score1, score2) {
+        let match = this.findOngoingMatch(player);
+        if(match != null){
             this.log("INFO", "finishMatch", "Will be implement soon.");
+            _.remove(this.matchs, function(m) { return m == match; });
         }
         else
-            this.log("ERRO", "finishMatch", "Invalid score ("+score1+","+score2+")");
+            this.log("ERRO", "finishMatch", "No ongoing match found.");
     }
 };

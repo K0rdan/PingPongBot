@@ -33,12 +33,15 @@ PPB.ignoreMatch("1", "2");              // TEST : invalid player(s)
 PPB.ignoreMatch("player1", "player2");  // OK
 PPB.ignoreMatch("player1", "player2");  // TEST : No match to ignoreMatch*/
 
-PPB.won();      // OK : No score provided
-PPB.won(0,11);  // TEST : Invalid score.
-PPB.won(11,0);  // OK : Score provided  -> First param > Second param
-PPB.won();      // TEST : No match found
-PPB.won(11,0);  // TEST : No match found-> First param > Second param
+PPB.won();                  // TEST : empty / missing param
+PPB.won("1");               // TEST : Invalide player
+PPB.won("player1");         // TEST : No score provided
+PPB.won("player1","z","a"); // TEST : No score provided
+PPB.won("player1",0,11);    // TEST : Invalid score
+PPB.won("player1",11,0);    // OK : Score provided  -> First param > Second param
+PPB.won("player1",11,0);    // TEST : No match found
 
-PPB.lost();     // Same as won()
-PPB.lost(0,11); // Same as won(11,0)    -> First param < Second param
-PPB.lost(11,0); // TEST : Invalid score.
+/*PPB.lost();                 // Same as won()
+PPB.lost("1");              // Same as won("1");
+PPB.lost("player1",0,11);   // Same as won(11,0)    -> First param < Second param
+PPB.lost("player1",11,0);   // TEST : Invalid score.*/
