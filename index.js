@@ -1,3 +1,3 @@
-let PingPongBot = require('./pingpongbot');
+let PingPongBotAPI = require('./PingPongBotAPI/pingpongbot');
 
-let PPB = new PingPongBot();
+let pingPongBotAPI = new PingPongBotAPI();

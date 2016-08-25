@@ -1,6 +1,6 @@
-let PingPongBot = require('./pingpongbot');
+let PingPongBotAPI = require('./PingPongBotAPI/pingpongbotapi');
 
-let PPB = new PingPongBot();
+let PPB = new PingPongBotAPI();
 
 // Register a new player into the API
 PPB.addPlayer();                    // TEST : empty / missing param
@@ -45,3 +45,10 @@ PPB.won("player1",11,0);    // TEST : No match found
 PPB.lost("1");              // Same as won("1");
 PPB.lost("player1",0,11);   // Same as won(11,0)    -> First param < Second param
 PPB.lost("player1",11,0);   // TEST : Invalid score.*/
+
+PPB.addMatch("player1", "player2"); // OK
+PPB.acceptMatch("player1");         // OK
+PPB.acceptMatch("player2");         // OK
+PPB.lost("player1",10,11);   // Same as won(11,0)    -> First param < Second param
+
+PPB.getLadderBoard();

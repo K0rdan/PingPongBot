@@ -2,7 +2,7 @@ let _ = require('lodash');
 let Player = require('./player');
 let Match = require('./match');
 
-module.exports = class PingPongBot{
+module.exports = class PingPongBotAPI{
     constructor() {
         this.CONSTS = {
             ELOBASE: 1000,
@@ -40,13 +40,14 @@ module.exports = class PingPongBot{
     }
 
     findPlayerNameById(playerId) {
-        for(let i=0; i<this.players[i];i++){
+        for(let i=0; i<this.players.length;i++){
             if(this.players[i].getId() == playerId){
-                return this.players[i].getId();
+                return this.players[i].getName();
             }
         }
         return ''; // Empty string
     }
+    
     // Find the awaiting match for the player(s) passed through parameter.
     //  info :      The second player's name is optional.
     //  return :    the Match found.
@@ -88,7 +89,8 @@ module.exports = class PingPongBot{
         if(id){
             let existPlayer = this.existPlayer(id);
             if(!existPlayer){
-                let player = new Player(id, this.CONSTS.ELOBASE);
+                // TODO : replace the second parameter by the nickname used by the client.
+                let player = new Player(id, id, this.CONSTS.ELOBASE);
                 if(player != null){
                     this.players.push(player);
                     this.log("INFO", "addPlayer", "New player registered : "+player.getId()+"!");
@@ -178,7 +180,7 @@ module.exports = class PingPongBot{
         if(player) {
             if(typeof(score1) == "number" && typeof(score2) == "number") {
                 if(score1 > score2)
-                    this.finishMatch(player, score1, score2);
+                    this.finishMatch(player, score1, score2, true);
                 else
                     this.log("ERRO", "won", "The first score provided ('"+score1+"') must be greater than the second ('"+score2+"').");
             }
@@ -193,7 +195,7 @@ module.exports = class PingPongBot{
         if(player) {
             if(typeof(score1) == "number" && typeof(score2) == "number") {
                 if(score1 < score2)
-                    this.finishMatch(player, score1, score2);
+                    this.finishMatch(player, score1, score2, false);
                 else
                     this.log("ERRO", "lost", "The first score provided ('"+score1+"') must be smaller than the second ('"+score2+"').");
             }
@@ -203,13 +205,89 @@ module.exports = class PingPongBot{
         else
             this.log("ERRO", "lost", "Player ('"+playerId+"') not found.");
     }
-    finishMatch(player, score1, score2) {
+    finishMatch(player, score1, score2, win) {
         let match = this.findOngoingMatch(player);
         if(match != null){
-            this.log("INFO", "finishMatch", "Will be implement soon.");
+            match.getPlayers()[0].updateMatchPlayed();
+            match.getPlayers()[1].updateMatchPlayed();
+            this.calculateELO(match, player, score1, score2, win);
             _.remove(this.matchs, function(m) { return m == match; });
         }
         else
             this.log("ERRO", "finishMatch", "No ongoing match found.");
+    }
+
+    calculateELO(match, currentPlayer, score1, score2, win) {
+        let players = match.getPlayers();
+
+        // Setup opponent   
+        let opponentPlayer = null;
+        if(players[0].getId() == currentPlayer.getId())
+            opponentPlayer = players[1];
+        else
+            opponentPlayer = players[0];
+        
+        // Setup scores
+        let currentPlayerScore = null;
+        if(win) score1 > score2 ? currentPlayerScore = score1 : currentPlayerScore = score2;
+        else    score1 > score2 ? currentPlayerScore = score2 : currentPlayerScore = score1;
+        let opponentPlayerScore = null;
+        if(currentPlayerScore == score1) opponentPlayerScore = score2;
+        else opponentPlayerScore = score1;
+
+        // THE GIFT ! (If you don't know the film...)
+        if(currentPlayerScore == 0)
+            currentPlayerScore = 1;
+        if(opponentPlayerScore == 0)
+            opponentPlayerScore = 1;
+
+        // Setup win probability
+        let currentPlayerWinProb = this.getWinProb(currentPlayer, opponentPlayer);
+        let opponentPlayerWinProb = this.getWinProb(currentPlayer, opponentPlayer);
+
+        // ELOMove
+        let currentPlayerELOMove = null;
+        let opponentPlayerELOMove = null;
+        // For the WINNER
+        if(win) {
+            let currentPlayerBaseELOMove = Math.trunc(opponentPlayerWinProb/2);
+            currentPlayerELOMove = Math.ceil(currentPlayerBaseELOMove + currentPlayerBaseELOMove*this.getScoreInfluence(currentPlayerScore, opponentPlayerScore));
+            let opponentPlayerBaseELOMove = Math.trunc(currentPlayerWinProb/2);
+            opponentPlayerELOMove = Math.ceil(-(opponentPlayerBaseELOMove + opponentPlayerBaseELOMove*this.getScoreInfluence(opponentPlayerScore, currentPlayerScore)));
+        }
+        // For the LOOSER
+        else {
+            // TODO !
+            let currentPlayerBaseELOMove = Math.trunc(currentPlayerWinProb/2);
+            currentPlayerELOMove = Math.ceil(-(currentPlayerBaseELOMove + currentPlayerBaseELOMove*this.getScoreInfluence(currentPlayerScore, opponentPlayerScore)));            
+
+            let opponentPlayerBaseELOMove = Math.trunc(opponentPlayerWinProb/2);
+            opponentPlayerELOMove = Math.ceil(opponentPlayerBaseELOMove + opponentPlayerBaseELOMove*this.getScoreInfluence(opponentPlayerScore, currentPlayerScore));
+        }
+
+        // Overall ELOMove
+        let currentPlayerELOOut = currentPlayer.getELO() + currentPlayerELOMove;
+        let opponentPlayerELOOut = opponentPlayer.getELO() + opponentPlayerELOMove;
+
+        // Update ELO scores
+        currentPlayer.setELO(currentPlayerELOOut);
+        opponentPlayer.setELO(opponentPlayerELOOut);
+
+        this.log("INFO", "finishMatch", "The match between "+currentPlayer.getName()+" and "+ opponentPlayer.getName()+
+            " ended on the score of : "+currentPlayerScore+"-"+opponentPlayerScore+
+            " ! (Their ELO is now : "+currentPlayerELOOut+" ; "+opponentPlayerELOOut+")");
+    }
+
+    getWinProb(currentPlayer, opponentPlayer) {
+        return Math.round(Math.abs(currentPlayer.getELO()/opponentPlayer.getELO()/2*100));
+    }
+
+    getScoreInfluence(currentPlayerScore, opponentPlayerScore) {
+        return _.round(currentPlayerScore/opponentPlayerScore,2)/400;
+    }
+
+    getLadderBoard() {
+        console.log(_.orderBy(this.players, ['elo', 'matchPlayed'], ['desc', 'asc']));
+        //return _.orderBy(this.players, []);
     }
 };
