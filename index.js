@@ -1,3 +1,7 @@
-let PingPongBotAPI = require('./PingPongBotAPI/pingpongbot');
+const PingPongBotAPI = require('./PingPongBotAPI/pingpongbotapi');
+const SlackListener = require('./slacklistener');
 
-let pingPongBotAPI = new PingPongBotAPI();
+const pingPongBotAPI = new PingPongBotAPI();
+const slackListener = new SlackListener();
+
+slackListener.init();
